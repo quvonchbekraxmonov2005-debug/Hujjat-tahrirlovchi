@@ -1,22 +1,58 @@
-"""Veb-interfeys (Flask). Ishga tushirish: gunicorn -w 2 -b 127.0.0.1:8000 app:app"""
+"""Veb-interfeys (Flask) + Telegram Webhook."""
+import asyncio
 import io
+import os
 import re
 
 from flask import Flask, jsonify, render_template, request, send_file
+from telegram import Update
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 import db
-from config import MAX_FILE_MB
+from bot import build_app
+from config import BOT_TOKEN, MAX_FILE_MB
 from formatter import Options, TitleInfo, format_document, make_reference
 
 app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1)
 app.config["MAX_CONTENT_LENGTH"] = MAX_FILE_MB * 1024 * 1024
 
+tg_app = build_app() if BOT_TOKEN else None
+
+
+async def _handle_update(data: dict):
+    async with tg_app:
+        update = Update.de_json(data, tg_app.bot)
+        await tg_app.process_update(update)
+
 
 @app.get("/")
 def index():
     return render_template("index.html")
+
+
+@app.get("/set_webhook")
+def set_webhook():
+    if not tg_app:
+        return jsonify(error="BOT_TOKEN topilmadi"), 400
+    host = request.host_url.rstrip("/").replace("http://", "https://")
+    webhook_url = f"{host}/webhook/{BOT_TOKEN}"
+
+    async def _set():
+        async with tg_app:
+            await tg_app.bot.set_webhook(url=webhook_url)
+
+    asyncio.run(_set())
+    return jsonify(status="Webhook muvaffaqiyatli ulandi!", url=webhook_url)
+
+
+@app.post(f"/webhook/{BOT_TOKEN}")
+def telegram_webhook():
+    if not tg_app:
+        return "No bot", 400
+    data = request.get_json(force=True)
+    asyncio.run(_handle_update(data))
+    return "OK", 200
 
 
 @app.post("/format")
@@ -48,7 +84,7 @@ def format_route():
                 year=request.form.get("year", ""),
             )
         out, rep = format_document(data, name, Options(title=title, toc=request.form.get("toc", "1") == "1"))
-    except Exception as e:  # noto‘g‘ri fayl va h.k.
+    except Exception as e:
         db.refund(uid)
         return jsonify(error=f"Faylni qayta ishlab bo‘lmadi: {e}"), 400
 

@@ -1,4 +1,4 @@
-"""Telegram bot. Ishga tushirish: python bot.py"""
+"""Telegram bot (Webhook va Polling qo'llab-quvvatlaydi)."""
 import asyncio
 import io
 import logging
@@ -117,16 +117,21 @@ async def on_text(u: Update, c: ContextTypes.DEFAULT_TYPE):
     await process(u, c, t)
 
 
-def main():
+def build_app() -> Application:
     if not BOT_TOKEN:
         raise SystemExit("BOT_TOKEN o‘rnatilmagan")
-    app = Application.builder().token(BOT_TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("balans", balans))
-    app.add_handler(CommandHandler("add", add))
-    app.add_handler(MessageHandler(filters.Document.ALL, on_file))
-    app.add_handler(CallbackQueryHandler(on_button))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, on_text))
+    application = Application.builder().token(BOT_TOKEN).build()
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("balans", balans))
+    application.add_handler(CommandHandler("add", add))
+    application.add_handler(MessageHandler(filters.Document.ALL, on_file))
+    application.add_handler(CallbackQueryHandler(on_button))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, on_text))
+    return application
+
+
+def main():
+    app = build_app()
     app.run_polling()
 
 
