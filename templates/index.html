@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AutoDoc — hujjatni avtomatik formatlash</title>
+<style>
+  body{font-family:system-ui,Arial,sans-serif;max-width:720px;margin:24px auto;padding:0 16px;color:#1a1a1a}
+  h1{font-size:1.6rem} .card{border:1px solid #ddd;border-radius:10px;padding:16px;margin:16px 0}
+  label{display:block;margin:10px 0 4px;font-size:.9rem;color:#444}
+  input[type=text],select,textarea{width:100%;padding:8px;border:1px solid #bbb;border-radius:6px;box-sizing:border-box;font:inherit}
+  button{background:#1f6feb;color:#fff;border:0;border-radius:6px;padding:10px 18px;font-size:1rem;cursor:pointer;margin-top:14px}
+  #titulBox{display:none} #msg,#ref{margin-top:12px;font-size:.95rem} .err{color:#c62828}
+  @media (prefers-color-scheme:dark){body{background:#121212;color:#eee}.card{border-color:#333}label{color:#bbb}input[type=text],select,textarea{background:#1e1e1e;color:#eee;border-color:#444}}
+</style>
+</head>
+<body>
+<h1>AutoDoc — kurs ishi va hisobotlarni formatlash</h1>
+<p>.docx yoki .txt yuklang — Times New Roman 14, 1.5 interval, GOST hoshiyalari, mundarija va sahifa raqamlari bilan tayyor fayl qaytaramiz. Birinchi hujjat bepul.</p>
+
+<form id="f" class="card">
+  <label>Fayl (.docx / .txt)</label>
+  <input type="file" name="file" accept=".docx,.txt">
+  <label>yoki matnni shu yerga qo‘ying</label>
+  <textarea name="text" rows="5"></textarea>
+  <label><input type="checkbox" name="toc" value="1" checked> Mundarija qo‘shish</label>
+  <label><input type="checkbox" id="titul" name="titul" value="1"> Titul varaq qo‘shish</label>
+  <div id="titulBox">
+    <label>Universitet</label><input type="text" name="university">
+    <label>Fakultet</label><input type="text" name="faculty">
+    <label>Ish turi</label>
+    <select name="work_type"><option>KURS ISHI</option><option>DIPLOM ISHI</option><option>LABORATORIYA HISOBOTI</option><option>MUSTAQIL ISH</option><option>REFERAT</option></select>
+    <label>Mavzu</label><input type="text" name="topic">
+    <label>Talaba (F.I.O., guruh)</label><input type="text" name="student">
+    <label>Ilmiy rahbar</label><input type="text" name="supervisor">
+    <label>Shahar</label><input type="text" name="city" value="Toshkent">
+    <label>Yil</label><input type="text" name="year" value="2026">
+  </div>
+  <button type="submit">Formatlash</button>
+  <div id="msg"></div>
+</form>
+
+<form id="r" class="card">
+  <h2 style="font-size:1.2rem">Adabiyot yozuvi yaratish</h2>
+  <label>Turi</label>
+  <select name="kind"><option value="kitob">Kitob</option><option value="maqola">Maqola</option><option value="sayt">Sayt</option><option value="qonun">Qonun/me’yoriy hujjat</option></select>
+  <label>Muallif (Familiya I.O.)</label><input type="text" name="author">
+  <label>Nomi</label><input type="text" name="title">
+  <label>Shahar</label><input type="text" name="city">
+  <label>Nashriyot</label><input type="text" name="publisher">
+  <label>Yil</label><input type="text" name="year">
+  <label>Betlar soni / oralig‘i</label><input type="text" name="pages">
+  <label>Jurnal (maqola uchun)</label><input type="text" name="journal">
+  <label>Son (maqola uchun)</label><input type="text" name="number">
+  <label>URL (sayt uchun)</label><input type="text" name="url">
+  <label>Murojaat sanasi (sayt uchun)</label><input type="text" name="accessed">
+  <button type="submit">Yaratish</button>
+  <div id="ref"></div>
+</form>
+
+<script>
+const $=s=>document.querySelector(s);
+$('#titul').onchange=e=>$('#titulBox').style.display=e.target.checked?'block':'none';
+$('#f').onsubmit=async e=>{
+  e.preventDefault(); const m=$('#msg'); m.className=''; m.textContent='Ishlanmoqda...';
+  const r=await fetch('/format',{method:'POST',body:new FormData(e.target)});
+  if(!r.ok){const j=await r.json().catch(()=>({}));m.className='err';m.textContent=j.error||'Xatolik';return;}
+  const b=await r.blob(),a=document.createElement('a');
+  a.href=URL.createObjectURL(b);a.download='formatlangan.docx';a.click();
+  m.textContent='Tayyor! Word’da ochib, mundarijani yangilang (F9).';
+};
+$('#r').onsubmit=async e=>{
+  e.preventDefault();
+  const d=Object.fromEntries(new FormData(e.target));
+  const r=await fetch('/reference',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});
+  const j=await r.json(); $('#ref').textContent=j.reference||j.error;
+};
+</script>
+</body>
+</html>
